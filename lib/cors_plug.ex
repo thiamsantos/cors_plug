@@ -17,9 +17,20 @@ defmodule CORSPlug do
 
   def init(options) do
     options
+  end
+
+  def call(conn, options) do
+    options = options
     |> prepare_cfg(Application.get_all_env(:cors_plug))
     |> Keyword.update!(:expose, &Enum.join(&1, ","))
     |> Keyword.update!(:methods, &Enum.join(&1, ","))
+
+    conn = merge_resp_headers conn, headers(conn, options)
+
+    case conn.method do
+      "OPTIONS" -> conn |> send_resp(204, "") |> halt()
+      _method   -> conn
+    end
   end
 
   defp prepare_cfg(options, nil), do: Keyword.merge(defaults(), options)
@@ -27,15 +38,6 @@ defmodule CORSPlug do
     defaults()
     |> Keyword.merge(env)
     |> Keyword.merge(options)
-  end
-
-  def call(conn, options) do
-    conn = merge_resp_headers conn, headers(conn, options)
-
-    case conn.method do
-      "OPTIONS" -> conn |> send_resp(204, "") |> halt()
-      _method   -> conn
-    end
   end
 
   # headers specific to OPTIONS request
